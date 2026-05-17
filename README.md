@@ -32,16 +32,24 @@ llm-apps/
 
 ### Setup
 
+#### 1. Install dependencies
 ```bash
-# 1. Install dependencies
 uv sync
+```
 
-# 2. Configure secrets
+#### 2. Configure secrets
+```
 cp .env.example .env
 # Edit .env and set OPENAI_API_KEY=sk-...
+```
 
-# 3. Run the app
+#### 3. Run the app
+```
 uv run streamlit run tool_use_demo/st_app.py
+```
+or
+```
+uv run python -m tool_use_demo
 ```
 
 ### Environment variables (`.env`)
@@ -54,3 +62,4 @@ uv run streamlit run tool_use_demo/st_app.py
 | `OPENAI_TEMPERATURE` | ❌ | `0.0` | Sampling temperature (0.0–1.0) |
 
 > Sidebar fields are pre-filled from `.env` on startup and can be overridden in the UI.
+---
