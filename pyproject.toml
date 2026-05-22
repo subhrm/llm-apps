@@ -11,6 +11,10 @@ dependencies = [
     "langgraph>=1.2.0",
     "python-dotenv>=1.2.2",
     "streamlit>=1.57.0",
+    "mcp>=1.0.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "beautifulsoup4>=4.12.0",
 ]
 
 [build-system]
@@ -19,3 +23,13 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tool_use_demo"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_default_fixture_loop_scope = "function"
