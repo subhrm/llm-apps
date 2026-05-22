@@ -25,8 +25,17 @@ async def list_top_stories(limit: int = 30) -> str:
     if session is None:
         return "Error: MCP session is not active or initialized."
     try:
+        import json
         result = await session.call_tool("list_top_stories", {"limit": limit})
-        return "".join(block.text for block in result.content if hasattr(block, "text"))
+        stories = []
+        for block in result.content:
+            if hasattr(block, "text") and block.text:
+                try:
+                    stories.append(json.loads(block.text))
+                except json.JSONDecodeError:
+                    # In case a block is raw text, add it as is
+                    stories.append(block.text)
+        return json.dumps(stories)
     except Exception as e:
         return f"Error calling list_top_stories: {e}"
 
