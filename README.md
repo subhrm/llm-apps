@@ -13,7 +13,7 @@ This workspace is divided into several modular components:
 | **`hn_mcp`** | MCP Server | A FastMCP server served over SSE that connects to the Hacker News API to fetch top stories, story details, comment threads, and scrape website main bodies. | 📄 [Hacker News MCP README](file:///Users/subhendu/dev/llm-apps/hn_mcp/README.md) |
 | **`hn_agent`** | AI Agent | A stateful agent built using **LangGraph** and FastAPI that connects to the `hn_mcp` server, runs tool loops, and streams execution steps using the **AG-UI** SSE protocol. | 📄 [Summarizer Agent README](file:///Users/subhendu/dev/llm-apps/hn_agent/README.md) |
 | **`hn-web-app`** | Web Client | A premium-aesthetic React + TypeScript dashboard client that communicates with the `hn_agent` API utilizing the official `@ag-ui/client` package. | 📄 [React Web App README](file:///Users/subhendu/dev/llm-apps/hn-web-app/README.md) |
-| **`tool_use_demo`** | Streamlit UI | A classic hand-rolled ReAct (Reason + Act) loop agent demonstrating custom tools (Calculator, Unit Converter, Word Counter) in a Streamlit chat console. | *Details Below* |
+| **`tool_use_demo`** | Streamlit UI | A classic hand-rolled ReAct (Reason + Act) loop agent demonstrating custom tools (Calculator, Unit Converter, Word Counter) in a Streamlit chat console. | 📄 [Streamlit Demo README](file:///Users/subhendu/dev/llm-apps/tool_use_demo/README.md) |
 
 ---
 
