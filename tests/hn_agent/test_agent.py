@@ -140,3 +140,71 @@ def test_tools_meta_structure() -> None:
     # Verify fetch_article_content
     assert fetch_article_content.name == "fetch_article_content"
     assert "url" in fetch_article_content.args
+
+
+def test_dynamic_tool_building() -> None:
+    """Verifies that MCP tools are dynamically built into correct LangChain StructuredTools."""
+    from hn_agent.tools import build_dynamic_tools
+    from mcp.types import Tool
+    
+    mock_mcp_tool = Tool(
+        name="custom_math_tool",
+        description="Multiply a number by five.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "number": {
+                    "type": "integer",
+                    "description": "The input number."
+                }
+            },
+            "required": ["number"]
+        }
+    )
+    
+    dynamic_tools = build_dynamic_tools([mock_mcp_tool])
+    assert len(dynamic_tools) == 1
+    
+    tool = dynamic_tools[0]
+    assert tool.name == "custom_math_tool"
+    assert tool.description == "Multiply a number by five."
+    assert "number" in tool.args
+
+
+@pytest.mark.asyncio
+async def test_dynamic_tool_json_array_handling() -> None:
+    """Verifies that create_mcp_tool_wrapper correctly handles and packages multiple JSON text blocks."""
+    from hn_agent.tools import create_mcp_tool_wrapper, mcp_session_var
+    
+    class MockBlock:
+        def __init__(self, text: str):
+            self.text = text
+            self.type = "text"
+
+    class MockResult:
+        def __init__(self, content: list):
+            self.content = content
+
+    class MockSession:
+        async def call_tool(self, name, kwargs):
+            return MockResult([
+                MockBlock('{"id": 1, "title": "A"}'),
+                MockBlock('{"id": 2, "title": "B"}')
+            ])
+
+    schema = {
+        "properties": {},
+        "required": []
+    }
+    
+    tool = create_mcp_tool_wrapper("list_items", schema)
+    
+    session = MockSession()
+    token = mcp_session_var.set(session)
+    try:
+        res = await tool.ainvoke({})
+        assert res == '[{"id": 1, "title": "A"}, {"id": 2, "title": "B"}]'
+    finally:
+        mcp_session_var.reset(token)
+
+

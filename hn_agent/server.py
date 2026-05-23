@@ -46,7 +46,7 @@ from langchain_core.messages import (
 
 from hn_agent import config
 from hn_agent.agent import agent_app
-from hn_agent.tools import mcp_session_var
+from hn_agent.tools import mcp_session_var, mcp_tools_var
 
 # Configure logger
 logging.basicConfig(level=logging.INFO)
@@ -164,6 +164,17 @@ async def run_agent_generator(input_data: RunAgentInput) -> AsyncGenerator[str, 
                 # Set ContextVar so our tools can make calls
                 token = mcp_session_var.set(session)
 
+                # Fetch and bind dynamic tools for this session
+                from hn_agent.tools import build_dynamic_tools, TOOLS as FALLBACK_TOOLS
+                try:
+                    mcp_tools_result = await session.list_tools()
+                    dynamic_tools = build_dynamic_tools(mcp_tools_result.tools)
+                except Exception as e:
+                    logger.warning(f"Failed to fetch live tools from MCP session ({e}). Using fallback tools.")
+                    dynamic_tools = FALLBACK_TOOLS
+                
+                tools_token = mcp_tools_var.set(dynamic_tools)
+
                 try:
                     # Execute LangGraph streaming events
                     async for event in agent_app.astream_events({"messages": lc_messages}, version="v2"):
@@ -274,8 +285,9 @@ async def run_agent_generator(input_data: RunAgentInput) -> AsyncGenerator[str, 
                                         del active_tool_calls[idx]
 
                 finally:
-                    # Securely reset context var
+                    # Securely reset context vars
                     mcp_session_var.reset(token)
+                    mcp_tools_var.reset(tools_token)
 
         # 4. Emit Run Finished event
         yield encoder.encode(RunFinishedEvent(
@@ -310,53 +322,18 @@ async def get_capabilities() -> AgentCapabilities:
     """
     Returns standard capabilities defining Hacker News Agent tools, state, and identity.
     """
-    ag_tools = [
-        AGTool(
-            name="list_top_stories",
-            description="List the current top 30 stories from the front page of Hacker News.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "limit": {
-                        "type": "integer",
-                        "description": "The maximum number of stories to fetch (default: 30, max: 50)."
-                    }
-                }
-            }
-        ),
-        AGTool(
-            name="get_story_details",
-            description="Fetch the details of a specific Hacker News story, including metadata and top-level comments.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "story_id": {
-                        "type": "integer",
-                        "description": "The Hacker News story ID."
-                    },
-                    "max_comments": {
-                        "type": "integer",
-                        "description": "The maximum number of comments to include (default: 5, max: 20)."
-                    }
-                },
-                "required": ["story_id"]
-            }
-        ),
-        AGTool(
-            name="fetch_article_content",
-            description="Fetch and extract the readable text body of any URL/article linked in Hacker News stories.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "The article URL to fetch."
-                    }
-                },
-                "required": ["url"]
-            }
+    from hn_agent.tools import get_mcp_tools_metadata
+    metadata_list = await get_mcp_tools_metadata()
+
+    ag_tools = []
+    for tool_meta in metadata_list:
+        ag_tools.append(
+            AGTool(
+                name=tool_meta["name"],
+                description=tool_meta.get("description", ""),
+                parameters=tool_meta.get("inputSchema", {})
+            )
         )
-    ]
 
     return AgentCapabilities(
         identity=IdentityCapabilities(

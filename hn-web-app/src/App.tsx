@@ -15,6 +15,12 @@ function App() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Helper to extract the result content of a specific tool call from the message history
+  const findToolResult = (toolCallId: string): string | undefined => {
+    const toolMsg = messages.find(m => m.role === "tool" && (m as any).toolCallId === toolCallId);
+    return toolMsg?.content ? String(toolMsg.content) : undefined;
+  };
+
   // Initialize HttpAgent to connect to our local server
   const agent = useMemo(() => {
     return new HttpAgent({
@@ -359,11 +365,53 @@ function App() {
                       {isUser ? (
                         <p style={{ margin: 0 }}>{textContent}</p>
                       ) : (
-                        <div 
-                          dangerouslySetInnerHTML={{ 
-                            __html: parseMarkdown(textContent) 
-                          }} 
-                        />
+                        <>
+                          {textContent && (
+                            <div 
+                              dangerouslySetInnerHTML={{ 
+                                __html: parseMarkdown(textContent) 
+                              }} 
+                            />
+                          )}
+                          {msg.toolCalls && msg.toolCalls.length > 0 && (
+                            <div className="agent-steps-accordion">
+                              <details className="steps-details">
+                                <summary className="steps-summary">
+                                  <span className="steps-summary-title">
+                                    Agent Thought Process ({msg.toolCalls.length} step{msg.toolCalls.length > 1 ? "s" : ""})
+                                  </span>
+                                </summary>
+                                <div className="steps-content">
+                                  {msg.toolCalls.map((tc: any) => {
+                                    const result = findToolResult(tc.id);
+                                    return (
+                                      <div key={tc.id} className="step-item">
+                                        <div className="step-header">
+                                          <span className="step-icon">⚙️</span>
+                                          <span className="step-name">{tc.function.name}</span>
+                                          <span className={`step-status ${result ? "status-success" : "status-running"}`}>
+                                            {result ? "completed" : "running..."}
+                                          </span>
+                                        </div>
+                                        <div className="step-details-box">
+                                          <div className="step-args">
+                                            <strong>Arguments:</strong> <code>{tc.function.arguments}</code>
+                                          </div>
+                                          {result && (
+                                            <div className="step-result">
+                                              <strong>Result:</strong>
+                                              <pre className="step-result-pre">{result}</pre>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

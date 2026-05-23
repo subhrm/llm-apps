@@ -8,10 +8,10 @@ from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.prebuilt import tools_condition
 
 from hn_agent import config
-from hn_agent.tools import TOOLS
+from hn_agent.tools import mcp_tools_var, execute_tools
 
 # Define the state shape
 class AgentState(TypedDict):
@@ -31,8 +31,7 @@ if config.OPENAI_BASE_URL:
 # Create the ChatOpenAI client
 llm = ChatOpenAI(**llm_kwargs)
 
-# Bind the Hacker News MCP tools to the model
-llm_with_tools = llm.bind_tools(TOOLS)
+# The LLM is bound with tools dynamically inside the model execution node.
 
 
 async def call_model(state: AgentState) -> dict:
@@ -51,7 +50,11 @@ async def call_model(state: AgentState) -> dict:
     if not any(isinstance(msg, SystemMessage) for msg in messages):
         messages = [SystemMessage(content=system_prompt)] + list(messages)
         
-    response = await llm_with_tools.ainvoke(messages)
+    # Dynamically bind the active tools to the model for this request context
+    active_tools = mcp_tools_var.get()
+    dynamic_llm = llm.bind_tools(active_tools)
+    
+    response = await dynamic_llm.ainvoke(messages)
     return {"messages": [response]}
 
 
@@ -62,7 +65,7 @@ workflow = StateGraph(AgentState)
 workflow.add_node("agent", call_model)
 
 # Add node for tool executions
-workflow.add_node("tools", ToolNode(TOOLS))
+workflow.add_node("tools", execute_tools)
 
 # Connect nodes
 workflow.add_edge(START, "agent")
